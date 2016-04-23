@@ -1,10 +1,317 @@
-Requirements for Go server (in production)
+Requirements for Go server in production env
 Go Conference 2016 Spring
 Tags: golang, server, graceful
+
+Yoshiki Nakagawa
+@yyoshiki41
+
+https://github.com/yyoshiki41
+[[http://esola.co][esola.co]]
+
+* AboutMe
+
+[[https://github.com/yyoshiki41][@yyoshiki41]]
 
 Yoshiki Nakagawa
 Infrastructure Engineer, pairs Division
 eureka, Inc.
 
-https://github.com/yyoshiki41
-[[http://esola.co][esola.co]]
+Tech
+
+- Golang
+- Middleware, RDBMS
+- AWS
+
+* eureka, Inc.
+
+.image images/img_eureka.png _ 750
+
+- [[https://www.pairs.lv/][pairs]]
+Online dating service
+
+- [[https://couples.lv/][Couples]]
+SNS for couples
+
+Go server is running in *Production* *Environments*.
+Build microservices / WebAPI in Golang.
+
+* pairs
+**
+
+.iframe https://www.pairs.lv/ 560 980
+
+* Introduction
+
+* A minimal HTTP server
+
+it's easy 😊
+
+.code -numbers code/server.go
+
+* A minimal HTTP server
+
+it's easy 😊
+
+1. Implement a handler function
+
+	func handler(w http.ResponseWriter, r *http.Request)
+
+2. Register the handler function for the given pattern
+
+	http.HandleFunc("/", handler)
+
+3. Start an HTTP server with a given address and handler
+
+	http.ListenAndServe("localhost:8000", nil)
+
+When the handler is `nil`,
+`http.DefaultServeMux` is used as `http.Handler`.
+
+* 
+
+`http.ListenAndServe` listens on the *TCP*network*address*.
+
+If you're creating your own `net.Listener` (_e.g._ `UnixListener`),
+use `http.Serve`.
+
+	http.Serve(l net.Listener, handler Handler)
+
+_c.f._ https://golang.org/pkg/net/#Listener
+
+.code code/listener.go
+
+* Handle concurrent requests
+
+Accept incoming connections on the listener, creating a new service goroutine for each.
+
+_c.f._ src/net/http/server.go#L2107
+
+.code -numbers code/serve.go
+
+* Handle concurrent requests
+
+To avoid a race condition,
+one goroutine accesses the variable at a time.
+
+
+Please see below.
+_The_Go_Programming_Language_
+— _Alan_A._A._Donovan_·_Brian_W._Kernighan_
+
+▶ PDF ( _$1._Tutorial_ ):
+　[[http://www.gopl.io/][http://www.gopl.io/]]
+　_$1.7_ A Web Server
+▶ Example code:
+　[[https://github.com/adonovan/gopl.io/blob/master/ch1/server2/main.go][https://github.com/adonovan/gopl.io/blob/master/ch1/server2/main.go]]
+
+*Check!*
+[[https://golang.org/doc/go1.6#runtime][Go 1.6 Release Notes (about _Runtime_)]]
+If one goroutine is writing to a map, no other goroutine should be reading or writing the map concurrently.
+
+* Requirements
+
+* Requirements
+
+*In*Production*Environments*
+
+1. Daemonize Go server
+2. Run Go app behind nginx
+3. Deploy Go app without dropping any requests
+
+- graceful shutdown / restart
+- hot configuration reload
+
+4. Performance
+
+* 1. Daemonize Go server
+
+[[https://github.com/golang/go/issues/227][issues/227]] `runtime:`support`for`daemonize`
+This issue is categorized as [[https://github.com/golang/go/milestones/Unplanned][milestone:Unplanned]] ...
+
+Use third party tools (which called a _Process_Manager_).
+
+- daemontools
+- Supervisor
+- Circus
+
+.image images/ps-manager-go.png _ 500
+
+* 2. Run Go app behind nginx
+
+Not a requirement.
+
+benefits
+
+- Limit access to certain client IP
+- Basic HTTP authentication
+- SSL termination
+in the case of golang,
+
+	http.ListenAndServeTLS(":443", "cert.pem", "key.pem", nil)
+
+- Static files cache
+
+_etc..._
+
+* 2. Run Go app behind nginx
+
+.image images/ps-manager-go-nginx.png _ 650
+
+* 3. Deploy Go app without dropping any requests
+
+▶ Blue/Green Deployment
+
+.image images/blue-green.png _ 950
+
+.caption _e.g.)_ swap Auto Scaling Groups
+
+* 3. Deploy Go app without dropping any requests
+
+▶ Hot Deployment
+
+.image images/hot-deploy.png _ 860
+.caption _e.g.)_ swap symlink
+
+* 3. Deploy Go app without dropping any requests
+
+- Old process stops gracefully.
+- The socket is kept opened.
+
+* 3. Deploy Go app without dropping any requests
+
+*How*to*?*
+
+A. Implement graceful restart in golang
+
+_e.g.)_
+
+1. Stop accepting new connections (without closing the socket)
+2. Start new version of the process
+3. Pass the socket to the new process (wihch start accepting new connections)
+4. The old process stops gracefully (or timeout)
+
+B. Use a socket manager (and HTTP server shutdown gracefully)
+
+_e.g.)_
+
+- Circus
+- einhorn
+
+* A. Implement graceful restart in golang
+
+Examples
+
+[[http://blog.scalingo.com/post/105609534953/graceful-server-restart-with-go][Graceful server restart with Go]]
+— _Léo_Unbekandt_CTO_@Scalingo_
+
+[[http://grisha.org/blog/2014/06/03/graceful-restart-in-golang/][Graceful Restart in Golang]]
+— _Grisha_Trubetskoy_
+
+* B. Use a socket manager (and HTTP server shutdown gracefully)
+
+In UNIX-based operating systems
+
+.image images/graceful-upgrade.png _ 1000
+
+- Start new process (CoW)
+- Master process receives Acknowledgement from new worker
+- The new process starts accepting new connections
+- Send a SIGNAL (_e.g._ SIGINT, SIGUSR2) to old process
+- The old process stops gracefully
+
+* B. Use a socket manager
+
+.image images/socket-manager-go.png _ 700
+
+* Graceful shutdown / restart
+
+* 😣 facebookgo/grace
+
+_Package_[[https://github.com/facebookgo/grace][ grace ]]_provides_a_library_that_makes_it_easy_to_build_socket_based_servers_that_can_be_gracefully_terminated_&_restarted_(that_is,_without_dropping_any_connections)._
+
+.code code/gracedemo.txt
+
+Master pid is *changed*.
+Not suitable for background daemon processes 🙅
+
+* facebookgo/httpdown
+
+_Package_[[https://github.com/facebookgo/httpdown][ httpdown ]]_provides_a_library_that_makes_it_easy_to_build_a_HTTP_server_that_can_be_shutdown_gracefully_(that_is,_without_dropping_any_connections)._
+
+[[https://github.com/facebookgo/grace][grace]] package uses this package underneath.
+
+*Good*Point*
+
+	// Serve provides the low-level API which is useful if you're creating your own
+	// net.Listener.
+	func (h HTTP) Serve(s *http.Server, l net.Listener) Server
+
+_c.f._ https://godoc.org/github.com/facebookgo/httpdown#HTTP.Serve
+
+* 😊 facebookgo/httpdown combined with Einhorn
+
+1. Communicates with the einhorn master from workers (e.g. send ACK).
+
+	# Use package go-einhorn
+	import github.com/stripe/go-einhorn
+
+2. Be able to receive SIGUSR2 signal (from the einhorn master and then graceful shutdown).
+
+	# Add SIGUSR2 signal
+	signal.Notify(..., syscall.SIGUSR2)
+
+* 😊 [DEMO] facebookgo/httpdown combined with Einhorn
+
+.code code/httpdown.txt
+
+* Other ways
+
+- [[https://github.com/lestrrat/go-server-starter][lestrrat/go-server-starter]]
+Server::Starter
+
+- [[https://github.com/tylerb/graceful][tylerb/graceful]]
+
+- [[https://github.com/fvbock/endless][fvbock/endless]]
+
+- [[https://github.com/zenazn/goji][goji]] running under Einhorn
+
+* The socket is kept opened
+
+* The socket is kept opened
+
+when go version lower than go1.6
+
+😢 [[https://github.com/golang/go/issues/11826][issues/11826]]
+_net:_UnixListener_unlinks_socket_files_inherited_via_socket_activation_
+
+`Close()` calls `syscall.Unlink(path)` on the file name ...
+
+**
+Apply a patch.
+[[https://gist.github.com/yyoshiki41/bb9e950a4215b61d08a0][https://gist.github.com/yyoshiki41/bb9e950a4215b61d08a0]]
+
+*Fixed*!*
+
+* The socket is kept opened
+
+In go1.6.x
+
+😊 [[https://github.com/golang/go/commit/a4fd325c178ea29f554d69de4f2c3ffa09b53874][commit/a4fd325]]
+_net:_do_not_unlink_unix_socket_in_UnixListener_created_from_fd_
+
+*Fixed*!*
+
+* Performance
+
+Use Unix domain sockets
+
+with Circus (Process & Socket Manager)
+Need to implement server which listening and serving HTTP requests through the specified file descriptor.
+
+* Performance
+
+_e.g._ [[https://github.com/gin-gonic/gin][gin-gonic/gin]]
+
+[[https://github.com/gin-gonic/gin/pull/526][pull/526]] implement `RunFd` method
+
+.code -numbers code/runfd.go

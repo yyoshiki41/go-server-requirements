@@ -1,0 +1,20 @@
+### Start server ###
+$ einhorn -b 127.0.0.1:8080 -m manual -c httpdown-einhorn httpdown_example
+[MASTER 89] INFO: Binding to 127.0.0.1:8080 with flags []
+[MASTER 89] INFO: Launching 1 new workers
+[MASTER 89] INFO: ===> Launched 93 (index: 0)
+...
+
+### Graceful Upgrade ###
+$ einhornsh -c httpdown-einhorn -e upgrade
+[MASTER 89] INFO: Reloading einhorn master..                  👈 Reload new binary(MASTER pid:89)
+[MASTER 89] INFO: Starting smooth upgrade from version 0...
+[MASTER 89] INFO: ===> Launched 99 (index: 1)
+2015/12/06 09:54:23 serving [::]:8080 with pid 99             👈 New worker(pid:99)
+[MASTER 89] INFO: Received a manual ACK from 99
+[MASTER 89] INFO: Up to 1 / 1 manual ACKs
+[MASTER 89] INFO: Killing off 1 old workers.
+[MASTER 89] INFO: Sending USR2 to [93]
+2015/12/06 09:56:57 signal received: user defined signal 2    👈 Graceful Shutdown(pid:93)
+2015/12/06 09:56:57 exiting
+[MASTER 89] INFO: ===> Exited worker 93

@@ -1,0 +1,13 @@
+$ $GOPATH/bin/gracedemo
+2015/12/06 08:29:48 Serving [::]:48567 with pid 2400
+...
+
+$ sudo lsof -i | grep gracedemo
+gracedemo  2400 yyoshiki41    4u  IPv6 0xf86a67efb29d445      0t0  TCP *:48567 (LISTEN)
+#          👆 master pid:2400
+
+# trigger a graceful server restart
+$ kill -USR2 2400
+$ sudo lsof -i | grep gracedemo
+gracedemo  2464 yyoshiki41    4u  IPv6 0xf86a67efb29d445      0t0  TCP *:48567 (LISTEN)
+#          👆 master pid:2464
