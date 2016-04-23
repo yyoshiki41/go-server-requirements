@@ -122,6 +122,7 @@ If one goroutine is writing to a map, no other goroutine should be reading or wr
 - hot configuration reload
 
 4. Performance
+5. Profile go app
 
 * 1. Daemonize Go server
 
@@ -305,8 +306,11 @@ _net:_do_not_unlink_unix_socket_in_UnixListener_created_from_fd_
 
 Use Unix domain sockets
 
-with Circus (Process & Socket Manager)
+with [[http://circus.readthedocs.org/en/latest/][Circus]] (Process & Socket Manager)
 Need to implement server which listening and serving HTTP requests through the specified file descriptor.
+
+_c.f._ [[https://speakerdeck.com/catatsuy/p-ads-server-gocon2015][ピクシブ社内広告サーバーでのGoの開発・運用]]
+- @catatsuy _Go_Conference_2015_summer_
 
 * Performance
 
@@ -315,3 +319,18 @@ _e.g._ [[https://github.com/gin-gonic/gin][gin-gonic/gin]]
 [[https://github.com/gin-gonic/gin/pull/526][pull/526]] implement `RunFd` method
 
 .code -numbers code/runfd.go
+
+* Profile go app
+
+[[https://golang.org/pkg/net/http/pprof/][net/http/pprof]]
+
+[[https://github.com/fukata/golang-stats-api-handler][fukata/golang-stats-api-handler]]
+
+- need to register api handler
+- defined as private / internal API
+
+[[https://github.com/davecheney/gcvis][davecheney/gcvis]]
+
+- visualise `gctrace` data
+- without modifying the code
+- set the environment variable `GODEBUG=gctrace=1`
